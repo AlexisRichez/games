@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Saboteur – les cartes</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { padding: 20px 28px; }
+    h1 { color: var(--accent); margin: 0 0 4px; }
+    h2 { color: var(--accent); font-size: 18px; margin: 26px 0 10px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 18px; }
+    figure { margin: 0; width: 120px; text-align: center; }
+    figure div { position: relative; width: 120px; height: 168px; }
+    figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Les cartes</h1>
+  <p class="hint">Toutes les cartes du jeu, en pixel art (dessinées par <code>pixel.js</code>).</p>
+  <div id="out"></div>
+  <script src="game.js"></script>
+  <script src="pixel.js"></script>
+  <script>
+    const { N, E, S, W } = Sabo;
+    const dirs = (e) => [[N, 'N'], [E, 'E'], [S, 'S'], [W, 'O']].filter(([b]) => e & b).map(([, l]) => l).join('');
+    const TOOLS = { pick: 'pioche', lantern: 'lanterne', cart: 'wagonnet' };
+    const fig = (url, cap, lbl) => `<figure><div class="hcard action"><img class="pix" src="${url}" alt="">${lbl ? `<div class="lbl">${lbl}</div>` : ''}</div><figcaption>${cap}</figcaption></figure>`;
+    const section = (title, figs) => `<h2>${title}</h2><div class="grid">${figs.join('')}</div>`;
+    document.getElementById('out').innerHTML = [
+      section('Départ et Arrivée', [
+        fig(Pixel.start(N | E | S | W), 'Départ'),
+        fig(Pixel.goal('gold', Sabo.GOAL_EDGES.gold), 'Arrivée : trésor'),
+        fig(Pixel.goal('coalA', Sabo.GOAL_EDGES.coalA), 'Arrivée : pierre (1)'),
+        fig(Pixel.goal('coalB', Sabo.GOAL_EDGES.coalB), 'Arrivée : pierre (2)'),
+        fig(Pixel.goalBack(null), 'Arrivée face cachée'),
+        fig(Pixel.goalBack('gold'), 'Consultée : trésor'),
+        fig(Pixel.goalBack('coalA'), 'Consultée : pierre'),
+      ]),
+      section('Chemins', Sabo.PATH_SPEC.map(([e, dead, n]) => fig(Pixel.path(e, dead), `${dirs(e)}${dead ? ' · cul-de-sac' : ''} · ×${n}`))),
+      section('Actions', [
+        ...Object.keys(TOOLS).map((t) => fig(Pixel.action({ type: 'break', tool: t }), `Casser ${Sabo.TOOL_NAMES[t]} · ×3`, 'Casser')),
+        ...Object.keys(TOOLS).map((t) => fig(Pixel.action({ type: 'repair', tools: [t] }), `Réparer ${Sabo.TOOL_NAMES[t]} · ×2`, 'Réparer')),
+        ...[['pick', 'lantern'], ['pick', 'cart'], ['lantern', 'cart']].map((p) =>
+          fig(Pixel.action({ type: 'repair', tools: p }), `Réparer ${TOOLS[p[0]]} ou ${TOOLS[p[1]]} · ×1`, 'Réparer l\'un des deux')),
+        fig(Pixel.action({ type: 'map' }), 'Plan · ×6', 'Plan'),
+        fig(Pixel.action({ type: 'rockfall' }), 'Éboulement · ×3', 'Éboulement'),
+      ]),
+    ].join('');
+  </script>
+</body>
+</html>
