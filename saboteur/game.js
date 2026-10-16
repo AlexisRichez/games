@@ -196,8 +196,9 @@
     };
   }
 
-  function log(state, msg) {
-    state.log.push(msg);
+  // Entrée d'historique : texte + icônes pixel (noms de sprites de pixel.js) affichées devant.
+  function log(state, msg, icons) {
+    state.log.push({ text: msg, icons: icons || [] });
     if (state.log.length > 200) state.log.splice(0, state.log.length - 200);
   }
 
@@ -354,7 +355,7 @@
     state.lastMove = null;
     state.roundResult = null;
     state.phase = 'playing';
-    log(state, `— Manche ${state.round} / ${MAX_ROUNDS} — ${state.players[first].name} commence.`);
+    log(state, `— Manche ${state.round} / ${MAX_ROUNDS} — ${state.players[first].name} commence.`, ['ladder']);
   }
 
   function endTurn(state, idx) {
@@ -362,7 +363,7 @@
     if (state.deck.length) p.hand.push(state.deck.pop());
     state.lastPlayer = idx;
     if (state.players.every((q) => q.hand.length === 0)) {
-      log(state, 'Plus aucune carte en main : le trésor n\'a pas été atteint.');
+      log(state, 'Plus aucune carte en main : le trésor n\'a pas été atteint.', ['cross']);
       endRound(state, false, null);
       return;
     }
@@ -397,7 +398,8 @@
     players.forEach((p, i) => { p.gold += gains[i]; });
     state.roundResult = { minersWin, finder, gains };
     state.phase = state.round >= MAX_ROUNDS ? 'gameOver' : 'roundEnd';
-    log(state, minersWin ? 'Les chercheurs d\'or remportent la manche !' : 'Les saboteurs remportent la manche !');
+    log(state, minersWin ? 'Les chercheurs d\'or remportent la manche !' : 'Les saboteurs remportent la manche !',
+      minersWin ? ['pick', 'gold'] : ['dynamite', 'cross']);
   }
 
   // Applique l'action d'un joueur. Renvoie null si OK, sinon un message d'erreur.
@@ -449,7 +451,7 @@
     if (a.type === 'discard') {
       p.hand.splice(ci, 1);
       state.discardCount++;
-      log(state, `${p.name} passe et défausse une carte.`);
+      log(state, `${p.name} passe et défausse une carte.`, ['discard']);
       endTurn(state, idx);
       return null;
     }
@@ -463,12 +465,13 @@
       p.hand.splice(ci, 1);
       state.board[key(x, y)] = { kind: 'path', edges, dead: card.dead };
       state.lastMove = { x, y };
-      log(state, `${p.name} pose un chemin.`);
+      log(state, `${p.name} pose un chemin.`, ['tunnel']);
       const revealed = revealGoals(state);
       for (const g of revealed) {
         log(state, g.type === 'gold'
-          ? `💰 ${p.name} atteint la carte Arrivée ${GOAL_NAMES[state.goals.indexOf(g)]} : c'est le TRÉSOR !`
-          : `🪨 La carte Arrivée ${GOAL_NAMES[state.goals.indexOf(g)]} est atteinte : des pierres…`);
+          ? `${p.name} atteint la carte Arrivée ${GOAL_NAMES[state.goals.indexOf(g)]} : c'est le TRÉSOR !`
+          : `La carte Arrivée ${GOAL_NAMES[state.goals.indexOf(g)]} est atteinte : des pierres…`,
+          [g.type === 'gold' ? 'gold' : 'stone']);
       }
       if (revealed.some((g) => g.type === 'gold')) {
         state.lastPlayer = idx;
@@ -482,14 +485,14 @@
         if (t.broken[card.tool]) return `${t.name} a déjà ${TOOL_NAMES[card.tool]} cassé(e).`;
         p.hand.splice(ci, 1);
         t.broken[card.tool] = true;
-        log(state, `${p.name} casse ${TOOL_NAMES[card.tool]} de ${t === p ? 'lui-même' : t.name}.`);
+        log(state, `${p.name} casse ${TOOL_NAMES[card.tool]} de ${t === p ? 'lui-même' : t.name}.`, [card.tool, 'cross']);
       } else {
         if (!card.tools.includes(a.tool)) return 'Cette carte ne répare pas cet outil.';
         if (!t.broken[a.tool]) return `${t.name} n'a pas ${TOOL_NAMES[a.tool]} cassé(e).`;
         p.hand.splice(ci, 1);
         delete t.broken[a.tool];
         state.discardCount += 2;
-        log(state, `${p.name} répare ${TOOL_NAMES[a.tool]} de ${t === p ? 'lui-même' : t.name}.`);
+        log(state, `${p.name} répare ${TOOL_NAMES[a.tool]} de ${t === p ? 'lui-même' : t.name}.`, [a.tool, 'check']);
       }
     } else if (card.type === 'map') {
       const g = state.goals[a.goal];
@@ -497,7 +500,7 @@
       p.hand.splice(ci, 1);
       p.known[a.goal] = g.type;
       state.discardCount++;
-      log(state, `${p.name} consulte secrètement la carte Arrivée ${GOAL_NAMES[a.goal]}.`);
+      log(state, `${p.name} consulte secrètement la carte Arrivée ${GOAL_NAMES[a.goal]}.`, ['map', 'eye']);
     } else if (card.type === 'rockfall') {
       const k = key(a.x | 0, a.y | 0);
       const cell = state.board[k];
@@ -506,7 +509,7 @@
       delete state.board[k];
       state.discardCount += 2;
       state.lastMove = null;
-      log(state, `${p.name} provoque un éboulement.`);
+      log(state, `${p.name} provoque un éboulement.`, ['dynamite']);
     } else {
       return 'Carte inconnue.';
     }

@@ -212,6 +212,32 @@
       '.kjjjJjkmmmmmkjJjjjk',
       '.kjjjJjjjkMkjjjJjjjk',
     ],
+    // Galerie en croix (historique : « pose un chemin »).
+    tunnel: [
+      'kcCkppkcCk',
+      'kcCkppkcCk',
+      'kCxkppkCxk',
+      'kkkkppkkkk',
+      'pppppppppp',
+      'PPPPPPPPPP',
+      'kkkkPPkkkk',
+      'kcCkPPkcCk',
+      'kCxkPPkCxk',
+      'kxxkPPkxxk',
+    ],
+    // Dos de carte (historique : « défausse »).
+    discard: [
+      'kkkkkkkk',
+      'kWWWWWWk',
+      'kWddddWk',
+      'kWdwwdWk',
+      'kWdwwdWk',
+      'kWdwwdWk',
+      'kWdwwdWk',
+      'kWddddWk',
+      'kWWWWWWk',
+      'kkkkkkkk',
+    ],
     eye: [
       '..kkkk..',
       '.keiiek.',
@@ -468,6 +494,117 @@
     });
   }
 
+  // --- Textures d'interface (bandeaux et panneau latéral) -----------------------------
+
+  // Planches de bois sombre, en rangées de 8 pixels. Motif large (512 × 64, soit 1536 × 192 à l'écran) pour que la
+  // répétition ne se voie pas : longueur, teinte, veinage, nœuds et clous varient d'une planche à l'autre.
+  const WOOD_W = 512, WOOD_H = 64;
+  const WOOD_BOARDS = ['#5a3d26', '#553923', '#604129', '#573b24', '#4f3520', '#5d4028'];
+  function wood() {
+    return cached('wood', () => {
+      const g = grid(WOOD_W, WOOD_H);
+      for (let p = 0; p < WOOD_H / 8; p++) {
+        const y0 = p * 8;
+        // Joints : à intervalles irréguliers de 40 à 110 pixels, le motif se raccorde sur ses bords.
+        const seams = [];
+        for (let x = Math.floor(hash(p, 0, 70) * 60), i = 0; x < WOOD_W - 30; i++) {
+          seams.push(x);
+          x += 40 + Math.floor(hash(p, i, 74) * 70);
+        }
+        const boardAt = (x) => {
+          let k = seams.length - 1;
+          for (let i = 0; i < seams.length; i++) if (seams[i] <= x) k = i;
+          const s = seams[k];
+          return { k, u: (x - s + WOOD_W) % WOOD_W, len: ((seams[(k + 1) % seams.length] - s + WOOD_W - 1) % WOOD_W) + 1 };
+        };
+        // Nœuds : 0 à 2 par planche.
+        const knots = [];
+        seams.forEach((s, k) => {
+          const n = Math.floor(hash(p, k, 75) * 2.6);
+          for (let j = 0; j < n; j++) knots.push([(s + 8 + hash(k, j, 76 + p) * 30 + j * 30) % WOOD_W, y0 + 2 + Math.floor(hash(j, k, 77 + p) * 4), 1 + hash(k, j, 78) * 0.9]);
+        });
+        for (let y = y0; y < y0 + 8; y++) {
+          for (let x = 0; x < WOOD_W; x++) {
+            const { k, u, len } = boardAt(x);
+            const base = WOOD_BOARDS[Math.floor(hash(p, k, 79) * WOOD_BOARDS.length)];
+            const grainLen = 2 + Math.floor(hash(k, y, 80 + p) * 5);
+            let kd = Infinity, kr = 1;
+            for (const [kx, ky, r] of knots) {
+              const d = Math.hypot(Math.min(Math.abs(x - kx), WOOD_W - Math.abs(x - kx)) * 0.7, y - ky);
+              if (d < kd) { kd = d; kr = r; }
+            }
+            let c = base;
+            if (y === y0 + 7 || u === 0) c = '#24180f';
+            else if (u === 1) c = '#6e4c31';
+            else if (y === y0) c = hash(x >> 3, p, 81) < 0.3 ? '#6e4c31' : '#78553a';
+            else if (kd < kr * 0.8) c = '#2e1f14';
+            else if (kd < kr * 1.8) c = '#46301f';
+            else if (hash(Math.floor((u + k * 7) / grainLen), y, 82 + p) < 0.2) c = '#47301e';
+            else if (hash(Math.floor(u / 6), y, 83 + p) < 0.07) c = '#6a4a30';
+            // Clous aux deux bouts de chaque planche (parfois manquants).
+            const end = u === 3 ? 0 : u === len - 3 ? 1 : -1;
+            if (end >= 0 && hash(p, k * 2 + end, 84) > 0.15) {
+              if (y === y0 + 2 || y === y0 + 5) c = '#a8b0b8';
+              else if (y === y0 + 3 || y === y0 + 6) c = '#2a1c12';
+            }
+            set(g, x, y, c);
+          }
+        }
+      }
+      return g;
+    });
+  }
+
+  // Rochers sombres : même découpage en dalles que le plateau (tile), en plus foncé et un peu plus contrasté.
+  const STONE = 32;
+  const STONE_SLABS = ['#2c333c', '#283038', '#313840', '#2a3139'];
+  function stone() {
+    return cached('stone', () => {
+      const g = grid(STONE, STONE);
+      const seeds = [];
+      for (let i = 0; i < 6; i++) seeds.push([hash(i, 0, 89) * STONE, hash(i, 1, 89) * STONE]);
+      const dist = (x, y, sx, sy) => {
+        const dx = Math.min(Math.abs(x - sx), STONE - Math.abs(x - sx));
+        const dy = Math.min(Math.abs(y - sy), STONE - Math.abs(y - sy));
+        return Math.hypot(dx, dy);
+      };
+      for (let y = 0; y < STONE; y++) {
+        for (let x = 0; x < STONE; x++) {
+          let d1 = Infinity, d2 = Infinity, idx = 0;
+          seeds.forEach(([sx, sy], i) => {
+            const d = dist(x, y, sx, sy);
+            if (d < d1) { d2 = d1; d1 = d; idx = i; } else if (d < d2) d2 = d;
+          });
+          const r = hash(x, y, 88);
+          const c = d2 - d1 < 0.9 ? '#14181d' : d2 - d1 < 1.9 ? '#22282f' : r < 0.08 ? '#20262d' : r < 0.14 ? '#3a424c' : STONE_SLABS[idx % STONE_SLABS.length];
+          set(g, x, y, c);
+        }
+      }
+      return g;
+    });
+  }
+
+  // Bande de fer rivetée (6 pixels d'épaisseur, un rivet tous les 16) ; verticale si demandé.
+  const RAIL_RIVET = ['.H.', 'HMD', 'MDD', '.D.'];
+  function rail(vertical) {
+    return cached(vertical ? 'rail-v' : 'rail-h', () => {
+      const h = grid(16, 6);
+      const rows = ['#0e1216', '#8a939c', '#5d666f', '#555e67', '#3a424a', '#0e1216'];
+      for (let y = 0; y < 6; y++) {
+        for (let x = 0; x < 16; x++) {
+          const c = rows[y];
+          set(h, x, y, (y === 2 || y === 3) && hash(x, y, 91) < 0.15 ? '#4b535c' : c);
+        }
+      }
+      const RC = { H: '#d0d6dc', M: '#8a939c', D: '#2a3036' };
+      RAIL_RIVET.forEach((line, dy) => [...line].forEach((ch, dx) => { if (RC[ch]) set(h, 6 + dx, 1 + dy, RC[ch]); }));
+      if (!vertical) return h;
+      const v = grid(6, 16);
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 6; x++) set(v, x, y, h.px[x * 16 + y]);
+      return v;
+    });
+  }
+
   // Avatars : [bonnet, barbe, peau].
   const CAPS = {
     rouge: ['#d83a3a', '#9c2424'], bleu: ['#3a6fd8', '#24479c'], vert: ['#3aa04a', '#25702f'],
@@ -509,5 +646,5 @@
     });
   }
 
-  root.Pixel = { path, start, goal, goalBack, action, tile, icon, dwarf, TILE, SPRITES };
+  root.Pixel = { path, start, goal, goalBack, action, tile, wood, stone, rail, icon, dwarf, TILE, SPRITES };
 })(this);

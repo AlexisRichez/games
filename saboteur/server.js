@@ -242,3 +242,6 @@ setInterval(() => {
 server.listen(PORT, HOST, () => {
   console.log(`Saboteur : http://localhost:${PORT}`);
 });
+
+// Arrêt propre (docker stop, Ctrl+C) : sans ça, Node lancé en PID 1 ignore SIGTERM.
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => process.exit(0));

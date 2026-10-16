@@ -173,6 +173,12 @@
     app.innerHTML = `<div class="center"><h1>Saboteur</h1><p>${esc(msg)}</p></div>`;
   }
 
+  // Ligne d'historique : icônes de l'action, puis le texte juste après.
+  function logLine(l) {
+    const e = typeof l === 'string' ? { text: l, icons: [] } : l;
+    return `<div><span class="lico">${e.icons.map(ico).join('')}</span><span>${esc(e.text)}</span></div>`;
+  }
+
   function dwarfImg(id) { return `<img class="dwarf" src="${Pixel.dwarf(id)}" alt="" draggable="false">`; }
   function av(p) { return `<span class="avatar">${dwarfImg(p.avatar)}</span>`; }
 
@@ -305,7 +311,7 @@
 
     const role = me && me.role ? `<span class="role ${me.role}">Vous êtes ${ROLE_LABELS[me.role]} ${me.role === 'saboteur' ? '😈' : '⛏️'}</span>` : '';
 
-    app.innerHTML = `<div class="game">
+    app.innerHTML = `<div class="game" style="--wood:url(${Pixel.wood()});--stone:url(${Pixel.stone()});--rail-h:url(${Pixel.rail(false)});--rail-v:url(${Pixel.rail(true)})">
       <div class="topbar"><span class="title">Saboteur</span>
         <span>Manche ${V.round} / ${V.maxRounds}</span><span>Pioche : ${V.deckCount}</span><span>Défausse : ${V.discardCount}</span>
         ${role}</div>
@@ -315,7 +321,7 @@
           <div class="zoom"><button class="secondary" data-act="zoomOut" title="Dézoomer (−)">−</button><button class="secondary" data-act="zoomReset" title="Taille normale (0)">${Math.round(ui.zoom * 100)} %</button><button class="secondary" data-act="zoomIn" title="Zoomer (+)">+</button><button class="secondary" data-act="recenter" title="Recentrer le plateau (C)">⌖</button></div>
         </div>
         <div class="side"><div class="players">${players}</div>
-          <div class="log">${V.log.slice().reverse().map((l) => `<div>${esc(l)}</div>`).join('')}</div></div>
+          <div class="log">${V.log.slice().reverse().map(logLine).join('')}</div></div>
       </div>
       <div class="handbar">
         <div class="instr"><span class="${cls}">${msg}</span>${buttons}</div>

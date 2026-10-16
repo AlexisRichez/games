@@ -1,0 +1,23 @@
+# Lancement : docker compose up -d   →   http://<ip-du-pi>:8000
+services:
+  saboteur:
+    build: .
+    image: saboteur:latest
+    container_name: saboteur
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${SABOTEUR_PORT:-8000}:8000"
+    environment:
+      TZ: Europe/Paris
+    # Le serveur consomme peu ; ces limites protègent un petit Pi.
+    mem_limit: 256m
+    cpus: 1.0
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "3"
